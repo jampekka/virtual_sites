@@ -55,7 +55,10 @@
 	<body>
 		<div id="intro">
 			<div>
-			<h1></iconify-icon><iconify-icon icon="mdi:church" /></iconify-icon><iconify-icon icon="mdi:emoticon-devil"></h1>
+			<h1>
+				<iconify-icon icon="mdi:emoticon-devil"></iconify-icon>'s
+				<iconify-icon icon="mdi:church"></iconify-icon>
+			</h1>
 			<h1>Pirunkirkko</h1>
 			<ul>
 				<li>Rotate the view the by dragging
@@ -126,7 +129,7 @@
 			let room_impulse = await fetch("./pirunkirkko/balloon_raw_ir_tr1.wav");
 			let drum_buffer = await fetch("./pirunkirkko/00046_SN_ON_DAMP_ff.wav");
 			
-			document.getElementById("loading_indicator").innerHTML = "Ready to go! Click anywhere to start."
+			document.getElementById("loading_indicator").innerHTML = "Ready to go! Click anywhere to enter."
 
 			let frameno = null;
 			let texture = new THREE.Texture();
