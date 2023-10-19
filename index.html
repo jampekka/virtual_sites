@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Pirunkirkko</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+		<style>
+			body {
+				touch-action: none;
+			}
+
+			#controls {
+				height: 200px;
+				width: 100%;
+				position: absolute;
+				bottom: 0;
+				z-index: 100;
+				text-align: center;
+				user-select: none;
+				display: flex;
+				justify-content: center;
+			}
+
+			#controls > div {
+				width: 200px;
+				cursor: pointer;
+			}
+
+			#controls iconify-icon {
+				font-size: 120px;
+			}
+
+			#intro {
+				position: fixed;
+				width: 100%;
+				height: 100%;
+				background: rgba(0, 0, 0, 0.8);
+				z-index: 1000;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+			}
+			
+			#intro > div {
+				width: 50em;
+			}
+			#intro h1 {
+				text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="intro">
+			<div>
+			<h1></iconify-icon><iconify-icon icon="mdi:church" /></iconify-icon><iconify-icon icon="mdi:emoticon-devil"></h1>
+			<h1>Pirunkirkko</h1>
+			<ul>
+				<li>Rotate the view the by dragging
+				<li>Move forwards with W and backwards with S
+				<li>Play sounds using the bottom buttons
+					<ul>
+					<li>WARNING: Microphone input <b>will</b> start giving feedback if using speakers
+					<li>CAVEAT: Audio latency in browsers is typically quite high so microphone input may feel weird
+					</ul>
+				</li>
+			</ul>
+			</div>
+
+		</div>
+		<div id="container">
+			<div id="controls">
+				<div id="reverb"><iconify-icon icon="material-symbols:wifi-tethering" rotate="180deg"></iconify-icon></div>
+				<div id="microphone"><iconify-icon icon="mdi:microphone-off"/></div>
+				<div id="balloon"><iconify-icon icon="mdi:balloon"/></div>
+				<div id="drum"><iconify-icon icon="fa-solid:drum"/></div>
+			</div>
+		</div>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "./three.module.js",
+					"three/addons/": "./jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+
+			let camera, scene, renderer, video;
+
+			let isUserInteracting = false,
+				lon = 0, lat = 0,
+				phi = 0, theta = 0,
+				onPointerDownPointerX = 0,
+				onPointerDownPointerY = 0,
+				onPointerDownLon = 0,
+				onPointerDownLat = 0;
+
+			const distance = .5;
+			let framepath = "./pirunkirkko/";
+			let frames = await (await fetch(framepath + "frames.json")).json();
+			let frame_load_promises = [];
+			let images = frames.map(frame => {
+				let image = new Image();
+				let promise = new Promise((accept, reject) => {
+					image.addEventListener("load", () => accept(image));
+					image.addEventListener("error", (err) => {
+						console.log("Failed to load image " + framepath + frame, err);
+						reject(err);
+					});
+				});
+				image.addEventListener("error", (wtf) =>  {console.log(wtf);});
+				frame_load_promises.push(promise);
+				image.src = framepath + frame;
+				console
+				return promise;
+			});
+			images = await Promise.all(frame_load_promises);
+			let frameno = null;
+			let texture = new THREE.Texture();
+			//video = document.getElementById("video");
+			//const texture = new THREE.VideoTexture(video);
+			
+			/*const canvas = document.createElement("canvas");
+			const context = canvas.getContext('2d');
+			canvas.width = images[0].width;
+			canvas.height = images[0].height;
+			console.log(canvas);
+			texture.image = canvas;
+			*/
+
+			function setFrame(new_frameno) {
+				if (new_frameno == frameno) {
+					return;
+				}
+				frameno = new_frameno;
+				frameno = Math.max(frameno, 0);
+				frameno = Math.min(frameno, images.length - 1);
+				/*
+				let prev_frame = Math.floor(frameno);
+				let next_frame = prev_frame + 1;
+				
+				
+				let weight_prev = frameno - prev_frame;
+				context.globalAlpha = 1.0;
+				context.drawImage(images[prev_frame], 0, 0);
+				context.globalAlpha = weight_prev;
+				context.drawImage(images[next_frame], 0, 0);*/
+
+				texture.image = images[Math.floor(frameno)];
+				texture.needsUpdate = true;
+			}
+
+
+			function init() {
+
+				const container = document.getElementById( 'container' );
+
+				camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, .25, 10 );
+
+				scene = new THREE.Scene();
+
+				const geometry = new THREE.SphereGeometry( 5, 60, 40 );
+				// invert the geometry on the x-axis so that all of the faces point inward
+				geometry.scale( - 1, 1, 1 );
+
+				/*video = document.getElementById( 'video' );
+				video.src = URL.createObjectURL(videoblob);
+				video.load();
+				video.addEventListener("canplaythrough", () => {
+					video.play(); video.pause();
+				});*/
+				//video.play();
+
+				//const texture = new THREE.VideoTexture( video );
+				//const texture = new THREE.TextureLoader().load( framepath + frames[frameno] );
+				setFrame(0);
+				texture.colorSpace = THREE.SRGBColorSpace;
+				texture.magFilter = THREE.LinearFilter;
+				const material = new THREE.MeshBasicMaterial( { map: texture } );
+				const mesh = new THREE.Mesh( geometry, material );
+				scene.add( mesh );
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				document.addEventListener( 'pointerdown', onPointerDown );
+				document.addEventListener( 'pointermove', onPointerMove );
+				document.addEventListener( 'pointerup', onPointerUp );
+				
+				document.addEventListener( 'keydown', onKeyDown );
+				document.addEventListener( 'keyup', onKeyUp );
+				document.addEventListener( 'wheel', onWheel );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function onPointerDown( event ) {
+
+				isUserInteracting = true;
+
+				onPointerDownPointerX = event.clientX;
+				onPointerDownPointerY = event.clientY;
+
+				onPointerDownLon = lon;
+				onPointerDownLat = lat;
+
+			}
+
+			function onPointerMove( event ) {
+
+				if ( isUserInteracting === true ) {
+
+					lon = ( onPointerDownPointerX - event.clientX ) * 0.1 + onPointerDownLon;
+					lat = ( onPointerDownPointerY - event.clientY ) * 0.1 + onPointerDownLat;
+
+				}
+
+			}
+
+			function onPointerUp() {
+
+				isUserInteracting = false;
+
+			}
+			
+			let moving_forward = 0;
+			let moving_backward = 0;
+
+			function onKeyDown(ev) {
+				let direction = Math.cos(THREE.MathUtils.degToRad(lon));
+				switch (ev.keyCode) {
+					case 87: // w
+						moving_forward = 1;
+						break;
+					case 83: // s
+						moving_backward = 1;
+						break;
+				}
+			}
+
+			function onKeyUp(ev) {
+				switch (ev.keyCode) {
+					case 87: // w
+						moving_forward = 0;
+						break;
+					case 83: // s
+						moving_backward = 0;
+						break;
+				}
+			}
+
+			function onWheel(event) {
+				let direction = Math.cos(THREE.MathUtils.degToRad(lon));
+				setFrame(frameno - Math.sign(direction)*event.deltaY/100);
+			}
+			
+			let prev_timestamp = null;
+			function animate(timestamp) {
+				let dt = (timestamp - prev_timestamp)/1000;
+				prev_timestamp = timestamp;
+				requestAnimationFrame( animate );
+				update( dt || 0);
+
+			}
+
+			function update(dt) {
+				lat = Math.max( - 85, Math.min( 85, lat ) );
+				phi = THREE.MathUtils.degToRad( 90 - lat );
+				theta = THREE.MathUtils.degToRad( lon );
+				camera.position.x = distance * Math.sin( phi ) * Math.cos( theta );
+				camera.position.y = distance * Math.cos( phi );
+				camera.position.z = distance * Math.sin( phi ) * Math.sin( theta );
+
+				camera.lookAt( 0, 0, 0 );
+
+				let movement = moving_forward - moving_backward;
+				let direction = Math.cos(theta);
+				setFrame(frameno + movement*Math.sign(direction)*dt*20);
+				renderer.render( scene, camera );
+
+			}
+
+			
+			let audio_is_setup = false;
+			async function audio_setup() {
+				if(audio_is_setup) {
+					return;
+				}
+
+				audio_is_setup = true;
+				let ctx = new AudioContext({
+					latencyHint: 0,
+				});
+				
+				let room_impulse = await fetch("./pirunkirkko/balloon_raw_ir_tr1.wav");
+				room_impulse = await room_impulse.arrayBuffer();
+				let convolver = new ConvolverNode(ctx);
+				convolver.buffer = await ctx.decodeAudioData(room_impulse);
+				convolver.normalize = false;
+				
+				let output = new GainNode(ctx);
+				let dry = new GainNode(ctx);
+				let wet = new GainNode(ctx);
+
+				function set_wet(do_wet) {
+					if(do_wet) {
+						// Mix in some dry to compensate for the poor
+						// impulse
+						dry.gain.value = 0.5;
+						wet.gain.value = 1.0;
+					} else {
+						dry.gain.value = 1.0;
+						wet.gain.value = 0;
+					}
+				}
+
+				function is_wet() {
+					return wet.gain.value > 0;
+				}
+
+				set_wet(true);
+
+				output.connect(convolver).connect(wet).connect(ctx.destination);
+				output.connect(dry).connect(ctx.destination);
+				
+
+				//let mic_gain = new GainNode(ctx);
+				let mic_stream = await navigator.mediaDevices.getUserMedia({
+					audio: {
+						echoCancellation: false,
+						noiseSuppression: false,
+						autoGainControl: false
+					}
+				});
+
+				let mic_input = ctx.createMediaStreamSource(mic_stream);
+				let mic_gain = new GainNode(ctx);
+				mic_gain.gain.value = 0;
+				mic_input.connect(mic_gain).connect(output);
+
+				let impulse_buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+				
+				// For some reason we have to really amp this up for the
+				// impulse to play properly. Maybe some filtering/FFT magic happening
+				// in web audio
+				impulse_buffer.getChannelData(0)[0] = 50.0;
+
+				function play_impulse() {
+					let impulse = ctx.createBufferSource();
+					impulse.buffer = impulse_buffer;
+					impulse.connect(output);
+					impulse.start();
+				};
+				document.getElementById("balloon").addEventListener("click", play_impulse);
+
+				let mic_element = document.getElementById("microphone");
+				mic_element.addEventListener("click", () => {
+					let icon;
+					if(mic_gain.gain.value == 0) {
+						mic_gain.gain.value = 1.0;
+						icon = "mdi:microphone";
+					} else {
+						mic_gain.gain.value = 0;
+						icon = "mdi:microphone-off";
+					}
+					
+					mic_element.childNodes[0].setAttribute("icon", icon);
+				});
+
+				let reverb_element = document.getElementById("reverb");
+				reverb_element.addEventListener("click", () => {
+					let icon;
+					if(is_wet()){
+						set_wet(false);
+						icon = "material-symbols:wifi-tethering-off";
+					} else {
+						set_wet(true);
+						icon = "material-symbols:wifi-tethering";
+					}
+					reverb_element.childNodes[0].setAttribute("icon", icon);
+				});
+
+				let drum_buffer = await fetch("./pirunkirkko/conga-mute-slap-mono.wav");
+				drum_buffer = await drum_buffer.arrayBuffer();
+				drum_buffer = await ctx.decodeAudioData(drum_buffer);
+				drum_buffer.channelInterpretation = "speakers";
+
+				function play_drum() {
+					let impulse = ctx.createBufferSource();
+					impulse.buffer = drum_buffer;
+					impulse.connect(output);
+					impulse.start();
+				};
+				document.getElementById("drum").addEventListener("click", play_drum);
+
+			}
+			
+			document.getElementById("intro").addEventListener("click", async () => {
+				await audio_setup();
+				document.getElementById("intro").remove();
+
+			});
+
+			
+			setFrame(0, true);
+			init();
+			animate();
+
+		</script>
+	</body>
+</html>
+
