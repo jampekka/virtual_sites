@@ -327,7 +327,9 @@
 					if(do_wet) {
 						// Mix in some dry to compensate for the poor
 						// impulse
-						dry.gain.value = 0.5;
+						// TODO: Does connect add or average the inputs?
+						// Doesn't sound like they add
+						dry.gain.value = 0.3;
 						wet.gain.value = 1.0;
 					} else {
 						dry.gain.value = 1.0;
@@ -400,8 +402,9 @@
 					}
 					reverb_element.childNodes[0].setAttribute("icon", icon);
 				});
-
-				let drum_buffer = await fetch("./pirunkirkko/conga-mute-slap-mono.wav");
+				
+				// From: https://zenodo.org/records/3773752
+				let drum_buffer = await fetch("./pirunkirkko/00046_SN_ON_DAMP_ff.wav");
 				drum_buffer = await drum_buffer.arrayBuffer();
 				drum_buffer = await ctx.decodeAudioData(drum_buffer);
 				drum_buffer.channelInterpretation = "speakers";
