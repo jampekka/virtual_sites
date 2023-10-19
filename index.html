@@ -67,6 +67,7 @@
 					</ul>
 				</li>
 			</ul>
+			<h1 id="loading_indicator">Loading, please wait.</h1>
 			</div>
 
 		</div>
@@ -122,6 +123,11 @@
 				return promise;
 			});
 			images = await Promise.all(frame_load_promises);
+			let room_impulse = await fetch("./pirunkirkko/balloon_raw_ir_tr1.wav");
+			let drum_buffer = await fetch("./pirunkirkko/00046_SN_ON_DAMP_ff.wav");
+			
+			document.getElementById("loading_indicator").innerHTML = "Ready to go! Click anywhere to start."
+
 			let frameno = null;
 			let texture = new THREE.Texture();
 			//video = document.getElementById("video");
@@ -313,7 +319,6 @@
 					latencyHint: 0,
 				});
 				
-				let room_impulse = await fetch("./pirunkirkko/balloon_raw_ir_tr1.wav");
 				room_impulse = await room_impulse.arrayBuffer();
 				let convolver = new ConvolverNode(ctx);
 				convolver.buffer = await ctx.decodeAudioData(room_impulse);
@@ -404,7 +409,6 @@
 				});
 				
 				// From: https://zenodo.org/records/3773752
-				let drum_buffer = await fetch("./pirunkirkko/00046_SN_ON_DAMP_ff.wav");
 				drum_buffer = await drum_buffer.arrayBuffer();
 				drum_buffer = await ctx.decodeAudioData(drum_buffer);
 				drum_buffer.channelInterpretation = "speakers";
